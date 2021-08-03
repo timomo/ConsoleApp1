@@ -26,15 +26,30 @@ namespace ConsoleApp1
             // see: https://developers.google.com/drive/api/v3/quickstart/dotnet
 
             UserCredential credential;
-            string Path = @"D:\Users\tyomo\Downloads\client_secret_433314261858-bm3meh16gj7thgbg8sg6qpdvssf2prdu.apps.googleusercontent.com.json";
-            string CredPath = @"D:\Users\tyomo\Downloads\token.json";
-            string ClientRootDirectory = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), @"test\ffadventure2");
+
+            string Path = args[0];
+            FileInfo file = new FileInfo(Path);
+            
+            if (! file.Exists)
+            {
+                Console.WriteLine("not found token file!:" + Path);
+                Environment.Exit(1);
+            }
+
+            DirectoryInfo di = new DirectoryInfo(args[1]);
+
+            if (! di.Exists)
+            {
+                Console.WriteLine("not found sync directory!:" + di.FullName);
+                Environment.Exit(1);
+            }
+
+            string CredPath = System.IO.Path.Combine(file.DirectoryName, "token.json");
+            string ClientRootDirectory = di.FullName;
 
             using (FileStream stream =
                 new FileStream(Path, FileMode.Open, FileAccess.Read))
             {
-                // The file token.json stores the user's access and refresh tokens, and is created
-                // automatically when the authorization flow completes for the first time.
                 credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
                     GoogleClientSecrets.FromStream(stream).Secrets,
                     Scopes,
@@ -71,19 +86,12 @@ namespace ConsoleApp1
             System.IO.FileInfo[] files = null;
             System.IO.DirectoryInfo[] subDirs = null;
 
-            // First, process all the files directly under this folder
             try
             {
                 files = root.GetFiles("*.*");
             }
-            // This is thrown if even one of the files requires permissions greater
-            // than the application provides.
             catch (UnauthorizedAccessException e)
             {
-                // This code just writes out the message and continues to recurse.
-                // You may decide to do something different here. For example, you
-                // can try to elevate your privileges and access the file again.
-                // log.Add(e.Message);
                 Console.WriteLine(e.Message);
             }
 
@@ -106,16 +114,17 @@ namespace ConsoleApp1
 
                 foreach (System.IO.FileInfo fi in files)
                 {
-                    // In this example, we only access the existing FileInfo object. If we
-                    // want to open, delete or modify the file, then
-                    // a try-catch block is required here to handle the case
-                    // where the file has been deleted since the call to TraverseTree().
-
                     string MimeType = MimeTypeMap.GetMimeType(fi.Extension);
 
-                    if (fi.Extension == ".pl" || fi.Extension == ".pm" || fi.Extension == ".cgi")
+                    switch (fi.Extension)
                     {
-                        MimeType = "text/plain";
+                        case ".pl":
+                        case ".pm":
+                        case ".cgi":
+                        case ".yml":
+                        case ".gitignore":
+                            MimeType = "text/plain";
+                            break;
                     }
 
                     using FileStream uploadStream = System.IO.File.OpenRead(fi.FullName);
@@ -129,19 +138,14 @@ namespace ConsoleApp1
 
                     Console.WriteLine(driveFile.Name + ":" + driveFile.MimeType);
 
-                    // Get the media upload request object.
                     FilesResource.CreateMediaUpload insertRequest = Service.Files.Create(driveFile, uploadStream, MimeType);
 
-                    // Add handlers which will be notified on progress changes and upload completion.
-                    // Notification of progress changed will be invoked when the upload was started,
-                    // on each upload chunk, and on success or failure.
                     insertRequest.ProgressChanged += Upload_ProgressChanged;
                     insertRequest.ResponseReceived += Upload_ResponseReceived;
 
                     insertRequest.Upload();
                 }
 
-                // Now find all the subdirectories under this directory.
                 subDirs = root.GetDirectories();
 
                 foreach (System.IO.DirectoryInfo dirInfo in subDirs)
@@ -150,8 +154,7 @@ namespace ConsoleApp1
                     {
                         continue;
                     }
-                    // Resursive call for each subdirectory.
-
+                    
                     // Check Exists Directory
                     FilesResource.ListRequest listRequest = Service.Files.List();
                     listRequest.Q = $"'{CloudParentDirectory.Id}' in parents and name = '${dirInfo.Name}' and mimeType = 'application/vnd.google-apps.folder'";

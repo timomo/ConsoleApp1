@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ConsoleApp1": {
+      "commandName": "Project",
+      "commandLineArgs": "\"D:\\Users\\tyomo\\Downloads\\client_secret_433314261858-bm3meh16gj7thgbg8sg6qpdvssf2prdu.apps.googleusercontent.com.json\" \"C:\\Users\\tyomo\\Desktop\\test\\ffadventure2\""
+    }
+  }
+}
